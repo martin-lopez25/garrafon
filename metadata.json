@@ -1,0 +1,6 @@
+{
+  "name": "Tlaloc - Organización de Garrafones",
+  "description": "Sistema justo e interactivo de asignación de compra y cargado de garrafones de agua inspirado en Tláloc y la iconografía mesoamericana.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
