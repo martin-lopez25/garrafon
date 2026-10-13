@@ -19,6 +19,7 @@ export const DashboardView: React.FC<DashboardViewProps> = () => {
     settings,
     people,
     confirmPurchase,
+    confirmLoad,
     designatedLoaders,
     allBuyers,
     stats,
@@ -75,6 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = () => {
   };
   const buyerIds = currentAss.buyerId.split(',').map((id) => id.trim()).filter(Boolean);
   const isBuyDone = currentAss.buyStatus !== 'pendiente';
+  const isLoadDone = currentAss.loadStatus === 'completado';
   const canConfirm = !draft && assignments.some((item) => item.date === selectedTargetDate);
 
   return (
@@ -238,6 +240,17 @@ export const DashboardView: React.FC<DashboardViewProps> = () => {
             <p className="text-xs text-slate-300">Rol: {loader.role === 'ambas' ? 'Compra y Carga' : 'Cargado'}</p>
           </li>)}
         </ul>
+        {currentAss.loadConfirmedAt && <p className="text-xs text-teal-300">Confirmado el {currentAss.loadConfirmedAt}</p>}
+        {!isLoadDone ? <button type="button" disabled={!canConfirm}
+          onClick={() => confirmLoad(currentAss.date, 'completado')}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-400 text-slate-950 text-sm font-bold disabled:opacity-40 hover:bg-teal-300">
+          <CheckCircle2 className="w-4 h-4" /> Confirmar cargadores
+        </button> : <div className="flex flex-wrap items-center gap-3">
+          <p role="status" className="text-sm text-teal-300">Cargadores confirmados</p>
+          <button type="button" title="Reabrir confirmación de cargadores" aria-label="Reabrir confirmación de cargadores"
+            onClick={() => confirmLoad(currentAss.date, 'pendiente')}
+            className="p-2 text-teal-200 hover:text-white"><RotateCcw className="w-4 h-4" /></button>
+        </div>}
       </section>
 
     </div>
