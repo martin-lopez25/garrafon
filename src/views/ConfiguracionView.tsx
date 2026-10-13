@@ -10,16 +10,14 @@ import {
   CheckCircle2,
   Sliders,
   ShieldCheck,
-  Droplets,
 } from 'lucide-react';
 import { useTlaloc } from '../context/TlalocContext';
 import { CodexBorder } from '../components/CodexPattern';
-import { getTodayDateString, calculateGarrafonesForDate } from '../utils/dateUtils';
+import { getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
 
 export const ConfiguracionView: React.FC = () => {
   const {
-    settings,
-    updateSettings,
+    assignments,
     resetRotation,
     resetToDefaults,
     exportDatabase,
@@ -27,42 +25,18 @@ export const ConfiguracionView: React.FC = () => {
     todayDate,
   } = useTlaloc();
 
-  const [startDateSequence, setStartDateSequence] = useState(
-    settings.startDateSequence
-  );
-  const [startGarrafonesCount, setStartGarrafonesCount] = useState<1 | 3>(
-    settings.startGarrafonesCount
-  );
-  const [skipWeekends, setSkipWeekends] = useState(settings.skipWeekends);
-
-  const [savedSuccess, setSavedSuccess] = useState(false);
   const [showResetRotationModal, setShowResetRotationModal] = useState(false);
   const [showResetDefaultsModal, setShowResetDefaultsModal] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
 
-  // Preview of what today's count would be with these settings
-  const previewTodayCount = calculateGarrafonesForDate(todayDate, {
-    ...settings,
-    startDateSequence,
-    startGarrafonesCount,
-    skipWeekends,
-  });
-
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateSettings({
-      startDateSequence,
-      startGarrafonesCount,
-      skipWeekends,
-      loadersCountThreeGarrafones: 3,
-      loadersCountOneGarrafon: 1,
-    });
-
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
+  const nextAssignment = [...assignments]
+    .filter((assignment) => assignment.date >= todayDate)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const money = (amount: number) => new Intl.NumberFormat('es-MX', {
+    style: 'currency', currency: 'MXN',
+  }).format(amount);
 
   const handleExport = () => {
     const data = exportDatabase();
@@ -105,138 +79,44 @@ export const ConfiguracionView: React.FC = () => {
           </div>
           <div>
             <h2 className="font-['Cinzel',serif] text-2xl font-bold text-cyan-100">
-              Configuración de Secuencia y Reglas
+              Configuración de Entregas y Rotación
             </h2>
             <p className="text-xs text-cyan-400/80">
-              Ajuste de parámetros de rotación, secuencia de garrafones y respaldos
+              Programación por fecha, rotación de responsables y respaldos
             </p>
           </div>
         </div>
       </div>
 
-      {/* Regla de Garrafones y Fecha Inicial */}
-      <div className="rounded-2xl bg-[#061726] border border-cyan-900/60 p-6 shadow-xl">
+      <section id="settings-delivery-rules" className="py-6 space-y-5">
         <CodexBorder variant="gold" className="mb-4" />
 
         <div className="flex items-center gap-2 mb-4">
           <Sliders className="w-5 h-5 text-amber-400" />
           <h3 className="font-['Cinzel',serif] text-lg font-bold text-cyan-100">
-            Regla Especial de Alternancia de Garrafones
+            Programación de Entregas por Fecha
           </h3>
         </div>
 
-        <p className="text-xs text-slate-300 mb-6">
-          La rotación alterna automáticamente:{' '}
-          <strong className="text-cyan-300">3 → 1 → 3 → 1 → 3 → 1</strong>.
-          Define la fecha de referencia para sincronizar el ciclo con el calendario real de la oficina.
-        </p>
-
-        <form onSubmit={handleSaveSettings} className="space-y-5 text-xs">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Start date */}
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Fecha Inicial de Referencia
-              </label>
-              <input
-                type="date"
-                required
-                value={startDateSequence}
-                onChange={(e) => setStartDateSequence(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-900 text-white focus:border-cyan-400 focus:outline-none"
-              />
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                Fecha de inicio a partir de la cual se calcula la alternancia.
-              </span>
-            </div>
-
-            {/* Start count on start date */}
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Garrafones correspondientes a la fecha inicial
-              </label>
-              <select
-                value={startGarrafonesCount}
-                onChange={(e) =>
-                  setStartGarrafonesCount(Number(e.target.value) as 1 | 3)
-                }
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-900 text-white focus:border-cyan-400 focus:outline-none"
-              >
-                <option value={3}>3 Garrafones (Día inicial fuerte)</option>
-                <option value={1}>1 Garrafón (Día inicial ligero)</option>
-              </select>
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                Determina si la fecha de inicio es día de 3 o de 1 garrafón.
-              </span>
-            </div>
-
-            {/* Weekend handling */}
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Comportamiento en Fines de Semana
-              </label>
-              <select
-                value={skipWeekends ? 'true' : 'false'}
-                onChange={(e) => setSkipWeekends(e.target.value === 'true')}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-900 text-white focus:border-cyan-400 focus:outline-none"
-              >
-                <option value="false">
-                  Todos los días naturales (Sábados y Domingos cuentan)
-                </option>
-                <option value="true">
-                  Solo días laborables (Pausar secuencia en fin de semana)
-                </option>
-              </select>
-            </div>
-
-            {/* Loaders count settings */}
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">
-                Cargadores asignados en días de 3 garrafones
-              </label>
-              <div className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-900 text-white">
-                3 cargadores, uno por garrafón
-              </div>
-            </div>
-          </div>
-
-          {/* Live Preview Box */}
-          <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-800/40 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Droplets className="w-5 h-5 text-cyan-400" />
-              <div>
-                <span className="text-slate-300 font-semibold block">
-                  Vista previa para Hoy ({todayDate}):
-                </span>
-                <span className="text-xs text-cyan-300">
-                  Con esta configuración corresponden:{' '}
-                  <strong className="text-white text-sm">
-                    {previewTodayCount} Garrafón{previewTodayCount > 1 ? 'es' : ''}
-                  </strong>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-cyan-950">
-            {savedSuccess ? (
-              <span className="text-teal-300 flex items-center gap-1.5 font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-teal-400" />
-                Configuración guardada correctamente
-              </span>
-            ) : (
-              <span />
-            )}
-
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:from-cyan-300 hover:to-teal-200 cursor-pointer shadow-md text-xs"
-            >
-              Guardar Cambios
-            </button>
-          </div>
-        </form>
-      </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
+          <div><dt className="font-semibold text-cyan-100">Fechas de entrega</dt><dd className="mt-1 text-slate-300">Cualquier día, incluidos sábados y domingos. Solo aparecen las entregas guardadas.</dd></div>
+          <div><dt className="font-semibold text-cyan-100">Garrafones y costo</dt><dd className="mt-1 text-slate-300">Cantidad y precio por garrafón definidos en cada entrega, sin alternancia fija.</dd></div>
+          <div><dt className="font-semibold text-cyan-100">Compradores</dt><dd className="mt-1 text-slate-300">Cantidad independiente por fecha. Responsables asignados por rotación, según su rol y disponibilidad.</dd></div>
+          <div><dt className="font-semibold text-cyan-100">Cargadores</dt><dd className="mt-1 text-slate-300">Un cargador por garrafón por defecto, con cantidad editable por fecha en el calendario. Responsables asignados por rotación.</dd></div>
+        </dl>
+        <div className="pt-4 border-t border-cyan-900/60 space-y-3">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-200"><Calendar className="w-4 h-4" /> Próxima entrega guardada</h4>
+          {nextAssignment ? <>
+            <p className="text-sm text-cyan-200">{formatDisplayDate(nextAssignment.date)}</p>
+            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div><dt className="text-slate-400">Garrafones</dt><dd className="text-white">{nextAssignment.garrafonesCount}</dd></div>
+              <div><dt className="text-slate-400">Costo por garrafón</dt><dd className="text-white">{nextAssignment.pricePerGarrafon === undefined ? 'Sin registrar' : money(nextAssignment.pricePerGarrafon)}</dd></div>
+              <div><dt className="text-slate-400">Compradores</dt><dd className="text-white">{nextAssignment.buyerId.split(',').filter((id) => id.trim()).length}</dd></div>
+              <div><dt className="text-slate-400">Cargadores</dt><dd className="text-white">{nextAssignment.loaderIds.length}</dd></div>
+            </dl>
+          </> : <p className="text-sm text-slate-300">Sin entregas guardadas para hoy o fechas posteriores.</p>}
+        </div>
+      </section>
 
       {/* Backup & Persistence */}
       <div className="rounded-2xl bg-[#061726] border border-cyan-900/60 p-6 shadow-xl space-y-4">

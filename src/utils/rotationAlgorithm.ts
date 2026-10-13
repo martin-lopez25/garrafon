@@ -169,12 +169,13 @@ export function getAssignmentForDate(
   );
 
   const participantsCount = Math.max(1, Math.round(garrafonesCount));
+  const buyersCount = settings.deliveryPlans?.[targetDate]?.buyersCount ?? participantsCount;
   const selectedBuyers: Person[] = [];
   const excludedBuyerIds = new Set<string>();
 
   for (
     let index = 0;
-    index < Math.min(participantsCount, availableForPurchase.length);
+    index < Math.min(buyersCount, availableForPurchase.length);
     index++
   ) {
     const buyer = selectFairCandidate(
@@ -196,7 +197,7 @@ export function getAssignmentForDate(
   );
 
   const actualLoadersCount = Math.min(
-    participantsCount,
+    settings.deliveryPlans?.[targetDate]?.loadersCount ?? participantsCount,
     availableForCarrying.length
   );
 
@@ -221,6 +222,7 @@ export function getAssignmentForDate(
   return {
     date: targetDate,
     garrafonesCount,
+    pricePerGarrafon: settings.deliveryPlans?.[targetDate]?.pricePerGarrafon,
     buyerId: selectedBuyers.map((person) => person.id).join(', '),
     buyerName:
       selectedBuyers.length > 0

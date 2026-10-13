@@ -114,6 +114,7 @@ export function isWaterDeliveryDay(
   dateStr: string,
   settings?: AppSettings
 ): boolean {
+  if (settings?.deliveryPlans?.[dateStr]) return true;
   if (settings?.deliveryOverrides) {
     if (Object.prototype.hasOwnProperty.call(settings.deliveryOverrides, dateStr)) {
       return false;
@@ -138,6 +139,8 @@ export function calculateGarrafonesForDate(
   dateStr: string,
   settings?: AppSettings
 ): number {
+  const plan = settings?.deliveryPlans?.[dateStr];
+  if (plan) return plan.garrafonesCount;
   const originalDate = settings?.deliveryOverrides
     ? Object.entries(settings.deliveryOverrides).find(
         ([, targetDate]) => targetDate === dateStr

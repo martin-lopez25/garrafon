@@ -29,6 +29,7 @@ export type LoadStatus = 'pendiente' | 'completado';
 export interface DayAssignment {
   date: string; // YYYY-MM-DD
   garrafonesCount: number;
+  pricePerGarrafon?: number;
   buyerId: string;
   buyerName: string;
   loaderIds: string[];
@@ -56,6 +57,7 @@ export interface AppSettings {
   wednesdayGarrafones: number;
   thursdayGarrafones: number;
   deliveryOverrides: Record<string, string | null>;
+  deliveryPlans?: Record<string, { buyersCount: number; garrafonesCount: number; pricePerGarrafon?: number; loadersCount?: number }>;
 }
 
 export type NavigationTab = 

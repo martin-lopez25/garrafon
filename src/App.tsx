@@ -4,7 +4,6 @@ import { Navigation } from './components/Navigation';
 import { DashboardView } from './views/DashboardView';
 import { CalendarView } from './views/CalendarView';
 import { CompraView } from './views/CompraView';
-import { CargadoView } from './views/CargadoView';
 import { PersonasView } from './views/PersonasView';
 import { DisponibilidadView } from './views/DisponibilidadView';
 import { HistorialView } from './views/HistorialView';
@@ -13,6 +12,7 @@ import { AmbientRain } from './components/AmbientRain';
 import { CodexBorder } from './components/CodexPattern';
 import { NavigationTab } from './types';
 import { Droplets } from 'lucide-react';
+import logoImage from '../imagen/logo.jpg';
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('dashboard');
@@ -25,8 +25,6 @@ function AppContent() {
         return <CalendarView />;
       case 'compra':
         return <CompraView />;
-      case 'cargado':
-        return <CargadoView />;
       case 'personas':
         return <PersonasView />;
       case 'disponibilidad':
@@ -41,7 +39,11 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#040f1a] text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#040f1a] text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-cyan-500 selection:text-slate-950 relative isolate overflow-x-hidden">
+      <div id="tlaloc-screen-background" aria-hidden="true" className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <img src={logoImage} alt="" className="w-full h-full object-contain opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#040f1a]/30 via-[#040f1a]/45 to-[#040f1a]/80" />
+      </div>
       {/* Mesoamerican Codex Ambient Water Rain */}
       <AmbientRain />
 
@@ -54,7 +56,7 @@ function AppContent() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full mt-auto py-8 bg-[#030a12] border-t border-cyan-950/80 z-10 text-center">
+      <footer className={`w-full mt-auto py-8 z-10 text-center ${currentTab === 'dashboard' ? '' : 'bg-[#030a12]/80 border-t border-cyan-950/80'}`}>
         <div className="max-w-6xl mx-auto px-4 space-y-3">
           <CodexBorder variant="subtle" />
           <div className="flex items-center justify-center gap-2 text-cyan-400/80 text-xs font-semibold">

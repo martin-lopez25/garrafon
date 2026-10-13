@@ -74,7 +74,8 @@ export const AmbientRain: React.FC = () => {
       {enabled && (
         <canvas
           ref={canvasRef}
-          className="fixed inset-0 pointer-events-none z-0 opacity-70"
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-20 opacity-70"
         />
       )}
       {/* Floating gentle rain toggle button at bottom right */}
@@ -82,6 +83,8 @@ export const AmbientRain: React.FC = () => {
         id="btn-toggle-ambient-rain"
         onClick={() => setEnabled(!enabled)}
         title={enabled ? 'Pausar lluvia ambiental' : 'Activar lluvia ambiental'}
+        aria-label={enabled ? 'Pausar lluvia ambiental' : 'Activar lluvia ambiental'}
+        aria-pressed={enabled}
         className={`fixed bottom-4 right-4 z-30 p-2.5 rounded-full backdrop-blur-md border shadow-lg transition-all cursor-pointer ${
           enabled
             ? 'bg-cyan-950/80 border-cyan-500/50 text-cyan-300 hover:bg-cyan-900 shadow-cyan-950/50'

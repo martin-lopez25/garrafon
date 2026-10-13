@@ -3,7 +3,6 @@ import {
   Home,
   Calendar,
   ShoppingCart,
-  Truck,
   UserX,
   History,
   Settings,
@@ -40,7 +39,6 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'dashboard', label: 'Inicio', icon: Home },
     { id: 'calendario', label: 'Calendario', icon: Calendar },
     { id: 'compra', label: 'Compra', icon: ShoppingCart },
-    { id: 'cargado', label: 'Cargado', icon: Truck },
     { id: 'disponibilidad', label: 'Disponibilidad', icon: UserX },
     { id: 'historial', label: 'Historial', icon: History },
     { id: 'configuracion', label: 'Configuración', icon: Settings },
@@ -71,20 +69,20 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full bg-[#081b2e]/95 backdrop-blur-md border-b border-cyan-900/60 shadow-lg shadow-black/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-18">
+        <div className="flex items-center justify-between min-h-20 gap-3 py-2">
           {/* Logo & Mesoamerican Brand */}
           <div
             id="nav-brand-logo"
             onClick={handleLogoClick}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-3 shrink-0 cursor-pointer group"
           >
-            <TlalocEmblem size="sm" />
+            <TlalocEmblem size="md" className="shrink-0" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-['Cinzel',serif] text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-teal-200 to-amber-300">
                   TLÁLOC
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
+                <span className="hidden xl:inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
                   <Droplets className="w-3 h-3 text-cyan-400" />
                   {todayAssignment.garrafonesCount} Garrafón{todayAssignment.garrafonesCount > 1 ? 'es' : ''} Hoy
                 </span>
@@ -96,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden xl:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
@@ -126,7 +124,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </nav>
 
           {/* Mobile Right Controls */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-2 xl:hidden">
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300">
               <Droplets className="w-3 h-3 text-cyan-400" />
               {todayAssignment.garrafonesCount} G.
@@ -151,7 +149,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       {mobileMenuOpen && (
         <div
           id="nav-mobile-drawer"
-          className="lg:hidden bg-[#061626] border-b border-cyan-900/80 px-4 pt-3 pb-5 space-y-1 shadow-2xl"
+          className="xl:hidden bg-[#061626] border-b border-cyan-900/80 px-4 pt-3 pb-5 space-y-1 shadow-2xl"
         >
           <div className="grid grid-cols-2 gap-2">
             {navItems.map((item) => {

@@ -59,6 +59,7 @@ interface TlalocContextValue {
   setDesignatedLoaders: (loaderIds: string[]) => void;
   saveAssignment: (date?: string) => void;
   updateAssignmentGarrafones: (date: string, count: number) => void;
+  scheduleDelivery: (date: string, buyersCount: number, garrafonesCount: number, pricePerGarrafon?: number, loadersCount?: number) => string | null;
   rescheduleDeliveryDay: (sourceDate: string, targetDate: string | null) => void;
   restoreDeliveryDay: (sourceDate: string) => void;
   confirmPurchase: (date?: string, targetStatus?: BuyStatus) => void;
@@ -461,6 +462,56 @@ export const TlalocProvider: React.FC<{ children: React.ReactNode }> = ({
     [people, settings]
   );
 
+  const scheduleDelivery = useCallback(
+    (targetDate: string, buyersCount: number, garrafonesCount: number, pricePerGarrafon?: number, loadersCount?: number): string | null => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) ||
+          !Number.isInteger(buyersCount) || buyersCount < 1 ||
+          !Number.isInteger(garrafonesCount) || garrafonesCount < 1 || garrafonesCount > 10) {
+        return 'Introduce cantidades enteras válidas (de 1 a 10 garrafones).';
+      }
+      if (pricePerGarrafon !== undefined && (!Number.isFinite(pricePerGarrafon) || pricePerGarrafon <= 0)) {
+        return 'Introduce un precio por garrafón mayor a cero.';
+      }
+      const requestedLoaders = loadersCount ?? settings.deliveryPlans?.[targetDate]?.loadersCount ?? garrafonesCount;
+      if (!Number.isInteger(requestedLoaders) || requestedLoaders < 1) {
+        return 'Introduce una cantidad entera de cargadores mayor a cero.';
+      }
+      const existing = assignments.find((item) => item.date === targetDate);
+      if (existing && (existing.buyStatus !== 'pendiente' || existing.loadStatus !== 'pendiente')) {
+        return 'No se puede modificar una entrega ya confirmada.';
+      }
+      const nextOverrides = { ...settings.deliveryOverrides };
+      delete nextOverrides[targetDate];
+      const nextSettings = {
+        ...settings,
+        deliveryOverrides: nextOverrides,
+        deliveryPlans: {
+          ...settings.deliveryPlans,
+          [targetDate]: {
+            buyersCount,
+            garrafonesCount,
+            loadersCount: loadersCount ?? settings.deliveryPlans?.[targetDate]?.loadersCount,
+            pricePerGarrafon: pricePerGarrafon ?? existing?.pricePerGarrafon ?? settings.deliveryPlans?.[targetDate]?.pricePerGarrafon,
+          },
+        },
+      };
+      const assignment = getAssignmentForDate(
+        targetDate, people, assignments.filter((item) => item.date !== targetDate), nextSettings
+      );
+      if (assignment.buyerId.split(',').filter(Boolean).length !== buyersCount ||
+          assignment.loaderIds.length !== requestedLoaders) {
+        return 'No hay suficientes compradores o cargadores disponibles para esta fecha.';
+      }
+      setSettings(nextSettings);
+      setAssignments((prev) => [
+        ...prev.filter((item) => item.date !== targetDate),
+        { ...assignment, notes: existing?.notes, isCustomOverride: true },
+      ].sort((a, b) => a.date.localeCompare(b.date)));
+      return null;
+    },
+    [people, assignments, settings]
+  );
+
   const rescheduleDeliveryDay = useCallback(
     (sourceDate: string, targetDate: string | null) => {
       const sourceAssignment = getAssignmentForDate(
@@ -488,13 +539,17 @@ export const TlalocProvider: React.FC<{ children: React.ReactNode }> = ({
         ].sort((a, b) => a.date.localeCompare(b.date));
       });
 
-      setSettings((prev) => ({
-        ...prev,
-        deliveryOverrides: {
-          ...prev.deliveryOverrides,
-          [sourceDate]: targetDate,
-        },
-      }));
+      setSettings((prev) => {
+        const deliveryPlans = { ...prev.deliveryPlans };
+        const sourcePlan = deliveryPlans[sourceDate];
+        delete deliveryPlans[sourceDate];
+        if (targetDate && sourcePlan) deliveryPlans[targetDate] = sourcePlan;
+        return {
+          ...prev,
+          deliveryPlans,
+          deliveryOverrides: { ...prev.deliveryOverrides, [sourceDate]: targetDate },
+        };
+      });
     },
     [people, assignments, settings]
   );
@@ -504,6 +559,11 @@ export const TlalocProvider: React.FC<{ children: React.ReactNode }> = ({
       const targetDate = prev.deliveryOverrides[sourceDate];
       const nextOverrides = { ...prev.deliveryOverrides };
       delete nextOverrides[sourceDate];
+      const deliveryPlans = { ...prev.deliveryPlans };
+      if (targetDate && deliveryPlans[targetDate]) {
+        deliveryPlans[sourceDate] = deliveryPlans[targetDate];
+        delete deliveryPlans[targetDate];
+      }
 
       if (targetDate) {
         setAssignments((current) =>
@@ -514,7 +574,7 @@ export const TlalocProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
 
-      return { ...prev, deliveryOverrides: nextOverrides };
+      return { ...prev, deliveryOverrides: nextOverrides, deliveryPlans };
     });
   }, []);
 
@@ -797,6 +857,7 @@ export const TlalocProvider: React.FC<{ children: React.ReactNode }> = ({
         setDesignatedLoaders,
         saveAssignment,
         updateAssignmentGarrafones,
+        scheduleDelivery,
         rescheduleDeliveryDay,
         restoreDeliveryDay,
         confirmPurchase,

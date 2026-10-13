@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   CalendarClock,
   CalendarX,
   Undo2,
+  Save,
   X,
 } from 'lucide-react';
 import { useTlaloc } from '../context/TlalocContext';
@@ -19,8 +21,6 @@ import { CodexBorder } from '../components/CodexPattern';
 import {
   formatDisplayDate,
   formatShortDate,
-  isWaterDeliveryDay,
-  isWednesday,
   addDays,
 } from '../utils/dateUtils';
 import { getAssignmentForDate } from '../utils/rotationAlgorithm';
@@ -35,6 +35,7 @@ export const CalendarView: React.FC = () => {
     confirmLoad,
     rescheduleDeliveryDay,
     restoreDeliveryDay,
+    scheduleDelivery,
   } = useTlaloc();
 
   // Current calendar month view (defaults to today's month)
@@ -49,6 +50,11 @@ export const CalendarView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [moveTargetDate, setMoveTargetDate] = useState('');
   const [scheduleError, setScheduleError] = useState('');
+  const [buyersCount, setBuyersCount] = useState(1);
+  const [garrafonesCount, setGarrafonesCount] = useState(1);
+  const [loadersCount, setLoadersCount] = useState(1);
+  const [price, setPrice] = useState('');
+  const pricePerGarrafon = Number(price);
 
   // Month navigation
   const prevMonth = () => {
@@ -114,12 +120,7 @@ export const CalendarView: React.FC = () => {
       const dStr = String(day).padStart(2, '0');
       const dateStr = `${currentYear}-${mStr}-${dStr}`;
 
-      const assignment = getAssignmentForDate(
-        dateStr,
-        people,
-        assignments,
-        settings
-      );
+      const assignment = assignments.find((item) => item.date === dateStr);
 
       days.push({
         dayNumber: day,
@@ -130,7 +131,7 @@ export const CalendarView: React.FC = () => {
     }
 
     return days;
-  }, [currentYear, currentMonth, todayDate, people, assignments, settings]);
+  }, [currentYear, currentMonth, todayDate, assignments]);
 
   const selectedAssignment = useMemo(() => {
     return getAssignmentForDate(
@@ -140,13 +141,47 @@ export const CalendarView: React.FC = () => {
       settings
     );
   }, [selectedCalendarDate, people, assignments, settings]);
+  const hasSavedAssignment = assignments.some((item) => item.date === selectedCalendarDate);
 
   const handleDayClick = (dateStr: string) => {
+    const assignment = getAssignmentForDate(dateStr, people, assignments, settings);
+    setBuyersCount(settings.deliveryPlans?.[dateStr]?.buyersCount ??
+      (assignment.buyerId.split(',').filter(Boolean).length || 1));
+    setGarrafonesCount(assignment.garrafonesCount);
+    setLoadersCount(settings.deliveryPlans?.[dateStr]?.loadersCount ??
+      (assignments.some((item) => item.date === dateStr)
+        ? assignment.loaderIds.length || assignment.garrafonesCount
+        : assignment.garrafonesCount));
+    setPrice((assignment.pricePerGarrafon ?? settings.deliveryPlans?.[dateStr]?.pricePerGarrafon)?.toString() ?? '');
     setSelectedCalendarDate(dateStr);
     setMoveTargetDate(addDays(dateStr, 7));
     setScheduleError('');
     setIsModalOpen(true);
   };
+
+  const previewAssignment = useMemo(() => getAssignmentForDate(
+    selectedCalendarDate,
+    people,
+    assignments.filter((item) => item.date !== selectedCalendarDate),
+    {
+      ...settings,
+      deliveryPlans: {
+        ...settings.deliveryPlans,
+        [selectedCalendarDate]: { buyersCount, garrafonesCount, loadersCount, pricePerGarrafon },
+      },
+    }
+  ), [selectedCalendarDate, people, assignments, settings, buyersCount, garrafonesCount, loadersCount, pricePerGarrafon]);
+  const isLocked = assignments.some((item) => item.date === selectedCalendarDate &&
+    (item.buyStatus !== 'pendiente' || item.loadStatus !== 'pendiente'));
+  const canSchedule = Number.isInteger(buyersCount) && buyersCount > 0 &&
+    Number.isInteger(garrafonesCount) && garrafonesCount > 0 && garrafonesCount <= 10 &&
+    Number.isInteger(loadersCount) && loadersCount > 0 &&
+    Number.isFinite(pricePerGarrafon) && pricePerGarrafon > 0 &&
+    previewAssignment.buyerId.split(',').filter(Boolean).length === buyersCount &&
+    previewAssignment.loaderIds.length === loadersCount;
+  const money = (amount: number) => new Intl.NumberFormat('es-MX', {
+    style: 'currency', currency: 'MXN',
+  }).format(amount);
 
   const hasSelectedOverride = Object.prototype.hasOwnProperty.call(
     settings.deliveryOverrides,
@@ -220,11 +255,11 @@ export const CalendarView: React.FC = () => {
       <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-slate-900/60 border border-cyan-950 text-xs">
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-amber-400 border border-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.5)]" />
-          <span className="text-slate-200 font-semibold">Miércoles (3 Garrafones • 3 pagadores • 3 cargadores)</span>
+          <span className="text-slate-200 font-semibold">3 garrafones</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-cyan-400 border border-cyan-300 shadow-[0_0_6px_rgba(6,182,212,0.5)]" />
-          <span className="text-slate-200 font-semibold">Jueves (1 Garrafón • 1 cargador)</span>
+          <span className="text-slate-200 font-semibold">Otras cantidades</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold">
@@ -236,7 +271,7 @@ export const CalendarView: React.FC = () => {
           <span className="px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-500/40 text-[10px] font-bold">
             G
           </span>
-          <span className="text-slate-300">Cargado (4 fijos)</span>
+          <span className="text-slate-300">Cargado</span>
         </div>
         <div className="flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
@@ -250,9 +285,9 @@ export const CalendarView: React.FC = () => {
         <div className="grid grid-cols-7 bg-[#082238] border-b border-cyan-900/60 text-center py-3 text-xs font-semibold text-cyan-300 uppercase tracking-wider font-mono">
           <span>Lun</span>
           <span>Mar</span>
-          <span className="text-amber-300 font-bold">Mié (3G)</span>
+          <span>Mié</span>
           <span>Jue</span>
-          <span className="text-cyan-300 font-bold">Jue (1G)</span>
+          <span>Vie</span>
           <span className="text-cyan-500/50">Sáb</span>
           <span className="text-cyan-500/50">Dom</span>
         </div>
@@ -270,16 +305,16 @@ export const CalendarView: React.FC = () => {
             }
 
             const { dayNumber, dateStr, assignment, isToday } = dayItem;
-            const isDelivery = isWaterDeliveryDay(dateStr, settings);
+            const isDelivery = Boolean(assignment);
             const isDisabled = Object.prototype.hasOwnProperty.call(
               settings.deliveryOverrides,
               dateStr
             );
-            const isThree = assignment.garrafonesCount === 3;
+            const isThree = assignment?.garrafonesCount === 3;
             const isBuyDone =
-              assignment.buyStatus === 'comprado' ||
-              assignment.buyStatus === 'confirmado';
-            const isLoadDone = assignment.loadStatus === 'completado';
+              assignment?.buyStatus === 'comprado' ||
+              assignment?.buyStatus === 'confirmado';
+            const isLoadDone = assignment?.loadStatus === 'completado';
 
             return (
               <div
@@ -313,10 +348,10 @@ export const CalendarView: React.FC = () => {
                       <CalendarX className="w-2.5 h-2.5" />
                       No
                     </span>
-                  ) : isDelivery ? (
+                  ) : assignment ? (
                     <span
                       title={
-                        isThree ? 'Miércoles de 3 garrafones' : 'Jueves de 1 garrafón'
+                        `${assignment.garrafonesCount} garrafones`
                       }
                       className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                         isThree
@@ -343,7 +378,7 @@ export const CalendarView: React.FC = () => {
                         : 'Inhabilitado'}
                     </span>
                   </div>
-                ) : isDelivery ? (
+                ) : assignment ? (
                   <div className="space-y-1 mt-1">
                     {/* Compra Chip */}
                     <div
@@ -386,7 +421,7 @@ export const CalendarView: React.FC = () => {
                 ) : (
                   <div className="my-auto text-center py-1">
                     <span className="text-[10px] text-slate-500/70 italic block">
-                      Sin entrega
+                      Sin entrega guardada
                     </span>
                   </div>
                 )}
@@ -404,14 +439,18 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Detail Modal for Selected Date */}
-      {isModalOpen && selectedAssignment && (
+      {isModalOpen && selectedAssignment && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div
             id="calendar-detail-modal"
-            className="w-full max-w-lg rounded-2xl bg-gradient-to-b from-[#0a233a] to-[#061524] border-2 border-cyan-500/50 shadow-2xl p-6 relative overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-date-title"
+            className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-gradient-to-b from-[#0a233a] to-[#061524] border-2 border-cyan-500/50 shadow-2xl p-4 sm:p-6 relative"
           >
             <button
               onClick={() => setIsModalOpen(false)}
+              aria-label="Cerrar calendario"
               className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-cyan-950 border border-transparent hover:border-cyan-800 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -428,17 +467,63 @@ export const CalendarView: React.FC = () => {
                       : 'Entrega inhabilitada'
                     : selectedMovedFromDate
                     ? `Entrega reprogramada desde el ${formatShortDate(selectedMovedFromDate)}`
-                    : isWaterDeliveryDay(selectedCalendarDate, settings)
-                    ? isWednesday(selectedCalendarDate)
-                      ? 'Entrega Oficial: Miércoles de 3 Garrafones'
-                      : 'Entrega Oficial: Jueves de 1 Garrafón'
-                    : 'Día sin entrega habitual programada'}
+                    : hasSavedAssignment
+                    ? 'Entrega programada'
+                    : 'Sin entrega guardada'}
                 </span>
               </div>
-              <h3 className="text-xl font-bold font-['Cinzel',serif] text-cyan-100">
+              <h3 id="calendar-date-title" className="text-lg sm:text-xl font-bold font-['Cinzel',serif] text-cyan-100">
                 {formatDisplayDate(selectedCalendarDate)}
               </h3>
             </div>
+
+            <form className="py-4 space-y-3" onSubmit={(event) => {
+              event.preventDefault();
+              const error = scheduleDelivery(selectedCalendarDate, buyersCount, garrafonesCount, pricePerGarrafon, loadersCount);
+              setScheduleError(error || '');
+              if (!error) setIsModalOpen(false);
+            }}>
+              <fieldset disabled={isLocked} className="grid grid-cols-2 gap-3 disabled:opacity-60">
+                <label className="min-w-0 text-sm text-cyan-200 space-y-1">
+                  <span className="block">Garrafones</span>
+                  <input type="number" min="1" max="10" step="1" required value={garrafonesCount || ''}
+                    onChange={(event) => { setGarrafonesCount(Number(event.target.value)); setScheduleError(''); }}
+                    className="w-full min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-cyan-800 text-white" />
+                </label>
+                <label className="min-w-0 text-sm text-cyan-200 space-y-1">
+                  <span className="block">Costo por garrafón (MXN)</span>
+                  <input type="number" min="0.01" step="0.01" required value={price}
+                    onChange={(event) => { setPrice(event.target.value); setScheduleError(''); }}
+                    className="w-full min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-cyan-800 text-white" />
+                </label>
+                <label className="min-w-0 text-sm text-cyan-200 space-y-1">
+                  <span className="block">Compradores</span>
+                  <input type="number" min="1" step="1" required value={buyersCount || ''}
+                    onChange={(event) => { setBuyersCount(Number(event.target.value)); setScheduleError(''); }}
+                    className="w-full min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-cyan-800 text-white" />
+                </label>
+                <label className="min-w-0 text-sm text-teal-200 space-y-1">
+                  <span className="block">Cargadores</span>
+                  <input type="number" min="1" step="1" required value={loadersCount || ''}
+                    onChange={(event) => { setLoadersCount(Number(event.target.value)); setScheduleError(''); }}
+                    className="w-full min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-teal-800 text-white" />
+                </label>
+              </fieldset>
+              {Number.isFinite(pricePerGarrafon) && pricePerGarrafon > 0 &&
+                <p className="text-sm text-amber-200">Costo total: <strong>{money(garrafonesCount * pricePerGarrafon)}</strong></p>}
+              {!isLocked && <div className="text-sm space-y-2 break-words">
+                <p className="text-cyan-200"><span className="text-slate-400">Compradores: </span>{previewAssignment.buyerName}</p>
+                <p className="text-teal-200"><span className="text-slate-400">Cargadores ({previewAssignment.loaderIds.length}): </span>{previewAssignment.loaderNames.join(', ')}</p>
+              </div>}
+              {isLocked ? <p className="text-xs text-amber-300">Entrega confirmada: las cantidades y el costo no se pueden modificar.</p> : <>
+                {!canSchedule && <p role="alert" className="text-xs text-rose-300">Revisa las cantidades, el costo y la disponibilidad de compradores y cargadores.</p>}
+                <button type="submit" disabled={!canSchedule}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 disabled:opacity-40">
+                  <Save className="w-4 h-4" /> Guardar entrega
+                </button>
+              </>}
+              {scheduleError && <p role="alert" className="text-xs text-rose-300">{scheduleError}</p>}
+            </form>
 
             {hasSelectedOverride ? (
               <div className="my-5 p-4 rounded-xl bg-rose-950/30 border border-rose-500/40 text-center">
@@ -457,7 +542,7 @@ export const CalendarView: React.FC = () => {
                   Restaurar día
                 </button>
               </div>
-            ) : (
+            ) : hasSavedAssignment ? (
               <>
             {/* Garrafones badge & volume */}
             <div className="my-5 p-4 rounded-xl bg-slate-900/80 border border-cyan-900/60 flex items-center justify-between">
@@ -490,7 +575,7 @@ export const CalendarView: React.FC = () => {
             {/* Activities summary in modal */}
             <div className="space-y-4">
               {/* Compra */}
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-cyan-950 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-cyan-950 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-cyan-950 border border-cyan-600/30 text-cyan-400">
                     <ShoppingCart className="w-5 h-5" />
@@ -499,7 +584,7 @@ export const CalendarView: React.FC = () => {
                     <span className="text-[11px] text-slate-400 uppercase font-semibold block">
                       Responsable de Compra
                     </span>
-                    <span className="text-base font-bold text-white">
+                    <span className="text-sm font-bold text-white break-words">
                       {selectedAssignment.buyerName}
                     </span>
                   </div>
@@ -530,7 +615,7 @@ export const CalendarView: React.FC = () => {
               </div>
 
               {/* Cargado */}
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-cyan-950 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-cyan-950 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-cyan-950 border border-cyan-600/30 text-teal-400">
                     <Truck className="w-5 h-5" />
@@ -539,7 +624,7 @@ export const CalendarView: React.FC = () => {
                     <span className="text-[11px] text-slate-400 uppercase font-semibold block">
                       Responsables de Cargado
                     </span>
-                    <span className="text-base font-bold text-white">
+                    <span className="text-sm font-bold text-white break-words">
                       {selectedAssignment.loaderNames.join(', ')}
                     </span>
                   </div>
@@ -570,8 +655,9 @@ export const CalendarView: React.FC = () => {
             </div>
 
             {!selectedMovedFromDate &&
+              !isLocked &&
               selectedCalendarDate >= todayDate &&
-              isWaterDeliveryDay(selectedCalendarDate, settings) && (
+              hasSavedAssignment && (
                 <div className="mt-5 p-4 rounded-xl bg-slate-950/70 border border-amber-500/30 space-y-3">
                   <div className="flex items-center gap-2 text-amber-200 font-semibold text-sm">
                     <CalendarClock className="w-4 h-4" />
@@ -616,7 +702,7 @@ export const CalendarView: React.FC = () => {
                 </div>
               )}
               </>
-            )}
+            ) : null}
 
             <div className="mt-6 pt-3 border-t border-cyan-950 flex justify-end">
               <button
@@ -627,7 +713,8 @@ export const CalendarView: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -16,7 +16,7 @@ export const TlalocEmblem: React.FC<TlalocEmblemProps> = ({
     sm: 'w-10 h-10',
     md: 'w-16 h-16',
     lg: 'w-24 h-24',
-    hero: 'w-32 h-32 md:w-40 md:h-40',
+    hero: 'w-full aspect-square',
   };
 
   return (
